@@ -1,6 +1,8 @@
 # Development & editor config
 .vscode/
 .git/
+.gitignore
+.npmrc
 tsconfig.json
 
 # Test files

@@ -1,0 +1,11 @@
+# Editor
+.vscode/
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Misc
+*.tgz
