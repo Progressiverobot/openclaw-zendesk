@@ -53,7 +53,7 @@
       "order": 95
     },
     "install": {
-      "npmSpec": "@openclaw/zendesk",
+      "npmSpec": "@progressiverobot/zendesk",
       "localPath": "extensions/zendesk",
       "defaultChoice": "npm"
     }

@@ -7,5 +7,8 @@ node_modules/
 # Build output
 dist/
 
+# NPM registry config (uses GITHUB_TOKEN env var - set locally or in CI)
+.npmrc
+
 # Misc
 *.tgz

@@ -1,0 +1,5 @@
+# Copy this file to .npmrc and set GITHUB_TOKEN to a token with read:packages scope
+# to install from GitHub Packages, or remove it to use npmjs.com instead.
+#
+# @progressiverobot:registry=https://npm.pkg.github.com
+# //npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
