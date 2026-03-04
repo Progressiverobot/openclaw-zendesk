@@ -1,0 +1,12 @@
+# Development & editor config
+.vscode/
+.git/
+tsconfig.json
+
+# Test files
+src/**/*.test.ts
+
+# Lock files (not needed in published package)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml

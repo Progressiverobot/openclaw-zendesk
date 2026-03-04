@@ -3,6 +3,34 @@
   "version": "2026.3.4",
   "description": "Zendesk channel plugin for OpenClaw – receive ticket events and reply via the Zendesk Support API",
   "type": "module",
+  "main": "./index.ts",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "files": [
+    "index.ts",
+    "src/**/*.ts",
+    "!src/**/*.test.ts",
+    "openclaw.plugin.json",
+    "README.md"
+  ],
+  "keywords": [
+    "openclaw",
+    "zendesk",
+    "plugin",
+    "channel",
+    "ai",
+    "support"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Progressiverobot/openclaw-zendesk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Progressiverobot/openclaw-zendesk/issues"
+  },
+  "homepage": "https://github.com/Progressiverobot/openclaw-zendesk#readme",
   "dependencies": {
     "zod": "^4.3.6"
   },
