@@ -949,13 +949,6 @@ Use this when:
     },
   };
 
-  // Keep the section header for webhooks (moved below)
-  const _escalatePlaceholder = escalateToHuman; void _escalatePlaceholder;
-
-  // -------------------------------------------------------------------------
-  // WEBHOOK MANAGEMENT TOOLS (continued)
-  // -------------------------------------------------------------------------
-
   const listWebhooks: ChannelAgentTool = {
     name: "zendesk_list_webhooks",
     label: "List Webhooks",

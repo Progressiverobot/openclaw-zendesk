@@ -337,8 +337,10 @@ The following tools are available to the OpenClaw agent when the Zendesk channel
 | `zendesk_bulk_update_tickets` | Update up to 100 tickets at once |
 | `zendesk_set_ticket_tags` | Replace all tags on a ticket |
 | `zendesk_add_ticket_tags` | Add tags without removing existing ones |
+| `zendesk_remove_ticket_tags` | Remove specific tags without affecting other tags |
 | `zendesk_skip_ticket` | Skip a ticket in round-robin with optional reason |
 | `zendesk_get_ticket_metrics` | Fetch timing/performance metrics for a ticket |
+| `zendesk_escalate_to_human` | Hand off to a human agent — adds internal note, sets `needs-human` tag, marks open |
 
 ### Comment Tools
 
@@ -517,6 +519,56 @@ Configure via `openclaw.plugin.json`:
 |---|---|---|
 | `rateLimitPerMinute` | `60` | Max inbound webhook events per minute per account |
 | `queuePollIntervalMs` | `30000` | How often the autonomous queue processor polls Zendesk views |
+
+---
+
+## Reliability
+
+### Circuit breaker
+
+The autonomous queue processor wraps every poll cycle in a `CircuitBreaker` (`src/circuit-breaker.ts`). When Zendesk returns five consecutive errors the circuit opens and all polling is paused for **2 minutes** (by default), preventing runaway retries during an outage.
+
+| State | Behaviour |
+|---|---|
+| `CLOSED` | Normal operation — every cycle runs |
+| `OPEN` | Polling skipped; circuit reopens after `circuitRecoveryMs` |
+| `HALF_OPEN` | One trial request; success → CLOSED, failure → OPEN again |
+
+Configure via `QueueProcessorOptions`:
+
+```ts
+startQueueProcessor(channel, {
+  circuitBreakerThreshold: 5,   // failures before opening (default 5)
+  circuitRecoveryMs: 120_000,   // recovery window in ms (default 2 min)
+});
+```
+
+### Incremental export mode
+
+By default the queue processor calls the **Execute View** endpoint once per configured view per poll. For high-volume instances, enable incremental export mode instead:
+
+```ts
+startQueueProcessor(channel, {
+  useIncrementalExport: true,
+});
+```
+
+When enabled, a single call to `/api/v2/incremental/tickets.json?start_time=…` replaces all per-view calls each cycle. The processor stores a cursor (Unix timestamp) that advances after each poll, so only genuinely new/updated tickets are considered. Open and pending tickets are dispatched; solved and closed tickets are skipped.
+
+| Mode | API calls per cycle |
+|---|---|
+| Default (view polling) | 1 per configured view |
+| `useIncrementalExport: true` | Always 1 |
+
+### SLA-aware dispatch priority
+
+Before dispatching a batch of candidate tickets the queue processor sorts them so the most urgent work is handled first:
+
+```
+urgent → high → normal → low → (no priority)
+```
+
+Within the same priority band, tickets are ordered oldest-first so long-waiting customers are never starved.
 
 ---
 
