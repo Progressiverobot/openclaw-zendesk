@@ -1,0 +1,16 @@
+{
+  "id": "zendesk",
+  "name": "Zendesk",
+  "description": "Zendesk Support channel plugin – receive tickets and reply with your OpenClaw AI agent",
+  "version": "2026.3.4",
+  "entryPoint": "./index.ts",
+  "channel": {
+    "id": "zendesk",
+    "label": "Zendesk",
+    "selectionLabel": "Zendesk (Support Tickets)",
+    "docsPath": "/channels/zendesk",
+    "docsLabel": "zendesk",
+    "blurb": "Connect Zendesk Support to OpenClaw – handle tickets with your AI agent.",
+    "order": 95
+  }
+}

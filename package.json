@@ -1,0 +1,33 @@
+{
+  "name": "@openclaw/zendesk",
+  "version": "2026.3.4",
+  "description": "Zendesk channel plugin for OpenClaw – receive ticket events and reply via the Zendesk Support API",
+  "type": "module",
+  "dependencies": {
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@sinclair/typebox": "*",
+    "openclaw": "*",
+    "typescript": "^5.4.0"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "channel": {
+      "id": "zendesk",
+      "label": "Zendesk",
+      "selectionLabel": "Zendesk (Support Tickets)",
+      "docsPath": "/channels/zendesk",
+      "docsLabel": "zendesk",
+      "blurb": "Connect Zendesk Support to OpenClaw – handle tickets with your AI agent.",
+      "order": 95
+    },
+    "install": {
+      "npmSpec": "@openclaw/zendesk",
+      "localPath": "extensions/zendesk",
+      "defaultChoice": "npm"
+    }
+  }
+}
