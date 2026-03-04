@@ -1,5 +1,5 @@
 {
-  "name": "@openclaw/zendesk",
+  "name": "@progressiverobot/zendesk",
   "version": "2026.3.4",
   "description": "Zendesk channel plugin for OpenClaw – receive ticket events and reply via the Zendesk Support API",
   "type": "module",
