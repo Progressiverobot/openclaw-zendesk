@@ -4,7 +4,7 @@
  */
 
 import type { ZendeskGroup } from "../types.js";
-import { buildBaseUrl, zdFetchRetry, zdFetch } from "./base.js";
+import { buildBaseUrl, zdFetchRetry, zdFetch, zdFetchCached, invalidateCacheFor } from "./base.js";
 
 type Creds = { subdomain: string; agentEmail: string; apiToken: string };
 type OkGroup = { ok: true; group: ZendeskGroup };
@@ -13,19 +13,19 @@ type Err = { ok: false; status: number; error: string };
 
 export async function getGroup(c: Creds, groupId: string | number): Promise<OkGroup | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/groups/${groupId}.json`;
-  const r = await zdFetchRetry<{ group: ZendeskGroup }>(url, c.agentEmail, c.apiToken);
+  const r = await zdFetchCached<{ group: ZendeskGroup }>(url, c.agentEmail, c.apiToken);
   return r.ok ? { ok: true, group: r.data.group } : r;
 }
 
 export async function listGroups(c: Creds): Promise<OkGroups | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/groups.json`;
-  const r = await zdFetchRetry<{ groups: ZendeskGroup[] }>(url, c.agentEmail, c.apiToken);
+  const r = await zdFetchCached<{ groups: ZendeskGroup[] }>(url, c.agentEmail, c.apiToken);
   return r.ok ? { ok: true, groups: r.data.groups } : r;
 }
 
 export async function listAssignableGroups(c: Creds): Promise<OkGroups | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/groups/assignable.json`;
-  const r = await zdFetchRetry<{ groups: ZendeskGroup[] }>(url, c.agentEmail, c.apiToken);
+  const r = await zdFetchCached<{ groups: ZendeskGroup[] }>(url, c.agentEmail, c.apiToken);
   return r.ok ? { ok: true, groups: r.data.groups } : r;
 }
 
@@ -39,6 +39,7 @@ export async function createGroup(
     method: "POST",
     body: JSON.stringify({ group: { name, description } }),
   });
+  if (r.ok) invalidateCacheFor("/groups");
   return r.ok ? { ok: true, group: r.data.group } : r;
 }
 
@@ -52,6 +53,7 @@ export async function updateGroup(
     method: "PUT",
     body: JSON.stringify({ group: updates }),
   });
+  if (r.ok) invalidateCacheFor(`/groups/${groupId}`);
   return r.ok ? { ok: true, group: r.data.group } : r;
 }
 

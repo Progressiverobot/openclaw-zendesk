@@ -8,7 +8,7 @@ import type {
   ZendeskSatisfactionRating,
   ZendeskTicketMetric,
 } from "../types.js";
-import { buildBaseUrl, zdFetchRetry, zdFetch } from "./base.js";
+import { buildBaseUrl, zdFetchRetry, zdFetch, zdFetchCached, invalidateCacheFor } from "./base.js";
 
 type Creds = { subdomain: string; agentEmail: string; apiToken: string };
 type OkTicket = { ok: true; ticket: ZendeskTicket };
@@ -21,13 +21,13 @@ type Err = { ok: false; status: number; error: string };
 
 export async function getTicket(c: Creds, ticketId: string | number): Promise<OkTicket | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/tickets/${ticketId}.json`;
-  const r = await zdFetchRetry<{ ticket: ZendeskTicket }>(url, c.agentEmail, c.apiToken);
+  const r = await zdFetchCached<{ ticket: ZendeskTicket }>(url, c.agentEmail, c.apiToken);
   return r.ok ? { ok: true, ticket: r.data.ticket } : r;
 }
 
 export async function getTickets(c: Creds, ids: (string | number)[]): Promise<OkTickets | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/tickets/show_many.json?ids=${ids.join(",")}`;
-  const r = await zdFetchRetry<{ tickets: ZendeskTicket[]; count: number; next_page: string | null }>(
+  const r = await zdFetchCached<{ tickets: ZendeskTicket[]; count: number; next_page: string | null }>(
     url,
     c.agentEmail,
     c.apiToken,
@@ -47,7 +47,7 @@ export async function listTickets(
   if (opts.sortBy) p.set("sort_by", opts.sortBy);
   if (opts.sortOrder) p.set("sort_order", opts.sortOrder);
   const url = `${buildBaseUrl(c.subdomain)}/tickets.json?${p}`;
-  const r = await zdFetchRetry<{ tickets: ZendeskTicket[]; count: number; next_page: string | null }>(
+  const r = await zdFetchCached<{ tickets: ZendeskTicket[]; count: number; next_page: string | null }>(
     url,
     c.agentEmail,
     c.apiToken,
@@ -66,7 +66,7 @@ export async function listTicketsByRequester(
   if (opts.page) p.set("page", String(opts.page));
   if (opts.perPage) p.set("per_page", String(opts.perPage));
   const url = `${buildBaseUrl(c.subdomain)}/tickets.json?${p}`;
-  const r = await zdFetchRetry<{ tickets: ZendeskTicket[]; count: number; next_page: string | null }>(
+  const r = await zdFetchCached<{ tickets: ZendeskTicket[]; count: number; next_page: string | null }>(
     url,
     c.agentEmail,
     c.apiToken,
@@ -85,7 +85,7 @@ export async function listTicketsByOrg(
   if (opts.page) p.set("page", String(opts.page));
   if (opts.perPage) p.set("per_page", String(opts.perPage));
   const url = `${buildBaseUrl(c.subdomain)}/organizations/${orgId}/tickets.json?${p}`;
-  const r = await zdFetchRetry<{ tickets: ZendeskTicket[]; count: number; next_page: string | null }>(
+  const r = await zdFetchCached<{ tickets: ZendeskTicket[]; count: number; next_page: string | null }>(
     url,
     c.agentEmail,
     c.apiToken,
@@ -119,6 +119,7 @@ export async function createTicket(
     method: "POST",
     body: JSON.stringify({ ticket: fields }),
   });
+  if (r.ok) invalidateCacheFor("/tickets");
   return r.ok ? { ok: true, ticket: r.data.ticket } : r;
 }
 
@@ -142,6 +143,7 @@ export async function updateTicket(
     method: "PUT",
     body: JSON.stringify({ ticket: updates }),
   });
+  if (r.ok) invalidateCacheFor(`/tickets/${ticketId}`);
   return r.ok ? { ok: true, ticket: r.data.ticket } : r;
 }
 
@@ -163,6 +165,7 @@ export async function bulkUpdateTickets(
     method: "PUT",
     body: JSON.stringify({ ticket: updates }),
   });
+  if (r.ok) invalidateCacheFor("/tickets");
   return r.ok ? { ok: true, jobStatus: r.data.job_status } : r;
 }
 
@@ -170,6 +173,7 @@ export async function bulkUpdateTickets(
 export async function deleteTicket(c: Creds, ticketId: string | number): Promise<{ ok: true } | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/tickets/${ticketId}.json`;
   const r = await zdFetch<null>(url, c.agentEmail, c.apiToken, { method: "DELETE" });
+  if (r.ok) invalidateCacheFor(`/tickets/${ticketId}`);
   return r.ok ? { ok: true } : r;
 }
 
@@ -183,6 +187,7 @@ export async function bulkDeleteTickets(
   const r = await zdFetch<{ job_status: unknown }>(url, c.agentEmail, c.apiToken, {
     method: "DELETE",
   });
+  if (r.ok) invalidateCacheFor("/tickets");
   return r.ok ? { ok: true, jobStatus: r.data.job_status } : r;
 }
 
@@ -205,6 +210,7 @@ export async function mergeTickets(
     method: "POST",
     body: JSON.stringify(body),
   });
+  if (r.ok) invalidateCacheFor(`/tickets/${targetId}`);
   return r.ok ? { ok: true, jobStatus: r.data.job_status } : r;
 }
 
@@ -214,7 +220,7 @@ export async function mergeTickets(
 
 export async function getTicketTags(c: Creds, ticketId: string | number): Promise<{ ok: true; tags: string[] } | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/tickets/${ticketId}/tags.json`;
-  const r = await zdFetchRetry<{ tags: string[] }>(url, c.agentEmail, c.apiToken);
+  const r = await zdFetchCached<{ tags: string[] }>(url, c.agentEmail, c.apiToken);
   return r.ok ? { ok: true, tags: r.data.tags } : r;
 }
 
@@ -228,6 +234,7 @@ export async function setTicketTags(
     method: "POST",
     body: JSON.stringify({ tags }),
   });
+  if (r.ok) invalidateCacheFor(`/tickets/${ticketId}`);
   return r.ok ? { ok: true, tags: r.data.tags } : r;
 }
 
@@ -241,6 +248,7 @@ export async function addTicketTags(
     method: "PUT",
     body: JSON.stringify({ tags }),
   });
+  if (r.ok) invalidateCacheFor(`/tickets/${ticketId}`);
   return r.ok ? { ok: true, tags: r.data.tags } : r;
 }
 
@@ -254,6 +262,7 @@ export async function removeTicketTags(
     method: "DELETE",
     body: JSON.stringify({ tags }),
   });
+  if (r.ok) invalidateCacheFor(`/tickets/${ticketId}`);
   return r.ok ? { ok: true } : r;
 }
 
@@ -266,7 +275,7 @@ export async function getTicketSatisfactionRating(
   ticketId: string | number,
 ): Promise<{ ok: true; rating: ZendeskSatisfactionRating } | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/tickets/${ticketId}/satisfaction_rating.json`;
-  const r = await zdFetchRetry<{ satisfaction_rating: ZendeskSatisfactionRating }>(
+  const r = await zdFetchCached<{ satisfaction_rating: ZendeskSatisfactionRating }>(
     url,
     c.agentEmail,
     c.apiToken,
@@ -283,7 +292,7 @@ export async function getTicketMetrics(
   ticketId: string | number,
 ): Promise<{ ok: true; metric: ZendeskTicketMetric } | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/tickets/${ticketId}/metrics.json`;
-  const r = await zdFetchRetry<{ ticket_metric: ZendeskTicketMetric }>(url, c.agentEmail, c.apiToken);
+  const r = await zdFetchCached<{ ticket_metric: ZendeskTicketMetric }>(url, c.agentEmail, c.apiToken);
   return r.ok ? { ok: true, metric: r.data.ticket_metric } : r;
 }
 
@@ -302,4 +311,50 @@ export async function skipTicket(
     body: JSON.stringify({ skip: { ticket_id: Number(ticketId), reason } }),
   });
   return r.ok ? { ok: true } : r;
+}
+
+// ---------------------------------------------------------------------------
+// Incremental export
+// ---------------------------------------------------------------------------
+
+export interface IncrementalTicketPage {
+  /** Tickets created or updated since the last cursor. */
+  tickets: ZendeskTicket[];
+  /** Unix seconds – pass as `startTimeUnixSeconds` on the next poll. */
+  endTime: number;
+  /** True when there are no more pages for this time window. */
+  endOfStream: boolean;
+  /** Number of tickets in this batch. */
+  count: number;
+}
+
+/**
+ * Fetch tickets created or updated since `startTimeUnixSeconds`.
+ * Much more API-efficient than view polling for large accounts:
+ * one request per cycle regardless of how many views you monitor.
+ *
+ * On first run: pass `Math.floor((Date.now() - 86_400_000) / 1_000)` to start 24 h back.
+ * Subsequent runs: pass the `endTime` returned by the previous call.
+ *
+ * https://developer.zendesk.com/api-reference/ticketing/ticket-management/incremental_exports/
+ */
+export async function fetchIncrementalTickets(
+  c: Creds,
+  startTimeUnixSeconds: number,
+): Promise<{ ok: true } & IncrementalTicketPage | Err> {
+  const url = `${buildBaseUrl(c.subdomain)}/incremental/tickets.json?start_time=${startTimeUnixSeconds}`;
+  const r = await zdFetchRetry<{
+    tickets: ZendeskTicket[];
+    end_time: number;
+    end_of_stream: boolean;
+    count: number;
+  }>(url, c.agentEmail, c.apiToken);
+  if (!r.ok) return r;
+  return {
+    ok: true,
+    tickets: r.data.tickets,
+    endTime: r.data.end_time,
+    endOfStream: r.data.end_of_stream,
+    count: r.data.count,
+  };
 }

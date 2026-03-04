@@ -6,7 +6,7 @@
  */
 
 import type { ZendeskSuspendedTicket } from "../types.js";
-import { buildBaseUrl, zdFetchRetry, zdFetch } from "./base.js";
+import { buildBaseUrl, zdFetchRetry, zdFetch, zdFetchCached } from "./base.js";
 
 type Creds = { subdomain: string; agentEmail: string; apiToken: string };
 type Err = { ok: false; status: number; error: string };
@@ -19,7 +19,7 @@ export async function listSuspendedTickets(
   if (opts.page) p.set("page", String(opts.page));
   if (opts.perPage) p.set("per_page", String(Math.min(opts.perPage, 100)));
   const url = `${buildBaseUrl(c.subdomain)}/suspended_tickets.json?${p}`;
-  const r = await zdFetchRetry<{ suspended_tickets: ZendeskSuspendedTicket[]; count: number }>(
+  const r = await zdFetchCached<{ suspended_tickets: ZendeskSuspendedTicket[]; count: number }>(
     url,
     c.agentEmail,
     c.apiToken,
@@ -34,7 +34,7 @@ export async function getSuspendedTicket(
   suspendedId: string | number,
 ): Promise<{ ok: true; suspendedTicket: ZendeskSuspendedTicket } | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/suspended_tickets/${suspendedId}.json`;
-  const r = await zdFetchRetry<{ suspended_ticket: ZendeskSuspendedTicket }>(
+  const r = await zdFetchCached<{ suspended_ticket: ZendeskSuspendedTicket }>(
     url,
     c.agentEmail,
     c.apiToken,

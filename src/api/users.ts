@@ -4,7 +4,7 @@
  */
 
 import type { ZendeskUser } from "../types.js";
-import { buildBaseUrl, zdFetchRetry, zdFetch } from "./base.js";
+import { buildBaseUrl, zdFetchRetry, zdFetch, zdFetchCached, invalidateCacheFor } from "./base.js";
 
 type Creds = { subdomain: string; agentEmail: string; apiToken: string };
 type OkUser = { ok: true; user: ZendeskUser };
@@ -13,13 +13,13 @@ type Err = { ok: false; status: number; error: string };
 
 export async function getUser(c: Creds, userId: string | number): Promise<OkUser | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/users/${userId}.json`;
-  const r = await zdFetchRetry<{ user: ZendeskUser }>(url, c.agentEmail, c.apiToken);
+  const r = await zdFetchCached<{ user: ZendeskUser }>(url, c.agentEmail, c.apiToken);
   return r.ok ? { ok: true, user: r.data.user } : r;
 }
 
 export async function getCurrentUser(c: Creds): Promise<OkUser | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/users/me.json`;
-  const r = await zdFetchRetry<{ user: ZendeskUser }>(url, c.agentEmail, c.apiToken);
+  const r = await zdFetchCached<{ user: ZendeskUser }>(url, c.agentEmail, c.apiToken);
   return r.ok ? { ok: true, user: r.data.user } : r;
 }
 
@@ -32,7 +32,7 @@ export async function listUsers(
   if (opts.page) p.set("page", String(opts.page));
   if (opts.perPage) p.set("per_page", String(Math.min(opts.perPage, 100)));
   const url = `${buildBaseUrl(c.subdomain)}/users.json?${p}`;
-  const r = await zdFetchRetry<{ users: ZendeskUser[]; count: number; next_page: string | null }>(
+  const r = await zdFetchCached<{ users: ZendeskUser[]; count: number; next_page: string | null }>(
     url,
     c.agentEmail,
     c.apiToken,
@@ -51,7 +51,7 @@ export async function searchUsers(
   if (opts.page) p.set("page", String(opts.page));
   if (opts.perPage) p.set("per_page", String(Math.min(opts.perPage, 100)));
   const url = `${buildBaseUrl(c.subdomain)}/users/search.json?${p}`;
-  const r = await zdFetchRetry<{ users: ZendeskUser[]; count: number; next_page: string | null }>(
+  const r = await zdFetchCached<{ users: ZendeskUser[]; count: number; next_page: string | null }>(
     url,
     c.agentEmail,
     c.apiToken,
@@ -79,6 +79,7 @@ export async function createUser(
     method: "POST",
     body: JSON.stringify({ user: fields }),
   });
+  if (r.ok) invalidateCacheFor("/users");
   return r.ok ? { ok: true, user: r.data.user } : r;
 }
 
@@ -92,6 +93,7 @@ export async function updateUser(
     method: "PUT",
     body: JSON.stringify({ user: updates }),
   });
+  if (r.ok) invalidateCacheFor(`/users/${userId}`);
   return r.ok ? { ok: true, user: r.data.user } : r;
 }
 

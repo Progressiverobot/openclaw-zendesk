@@ -4,7 +4,7 @@
  */
 
 import type { ZendeskMacro, ZendeskTicket } from "../types.js";
-import { buildBaseUrl, zdFetchRetry, zdFetch } from "./base.js";
+import { buildBaseUrl, zdFetchRetry, zdFetch, zdFetchCached, invalidateCacheFor } from "./base.js";
 
 type Creds = { subdomain: string; agentEmail: string; apiToken: string };
 type OkMacro = { ok: true; macro: ZendeskMacro };
@@ -13,7 +13,7 @@ type Err = { ok: false; status: number; error: string };
 
 export async function getMacro(c: Creds, macroId: string | number): Promise<OkMacro | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/macros/${macroId}.json`;
-  const r = await zdFetchRetry<{ macro: ZendeskMacro }>(url, c.agentEmail, c.apiToken);
+  const r = await zdFetchCached<{ macro: ZendeskMacro }>(url, c.agentEmail, c.apiToken);
   return r.ok ? { ok: true, macro: r.data.macro } : r;
 }
 
@@ -26,14 +26,14 @@ export async function listMacros(
   if (opts.page) p.set("page", String(opts.page));
   if (opts.perPage) p.set("per_page", String(Math.min(opts.perPage, 100)));
   const url = `${buildBaseUrl(c.subdomain)}/macros.json?${p}`;
-  const r = await zdFetchRetry<{ macros: ZendeskMacro[] }>(url, c.agentEmail, c.apiToken);
+  const r = await zdFetchCached<{ macros: ZendeskMacro[] }>(url, c.agentEmail, c.apiToken);
   return r.ok ? { ok: true, macros: r.data.macros } : r;
 }
 
 export async function searchMacros(c: Creds, query: string): Promise<OkMacros | Err> {
   const p = new URLSearchParams({ query });
   const url = `${buildBaseUrl(c.subdomain)}/macros/search.json?${p}`;
-  const r = await zdFetchRetry<{ macros: ZendeskMacro[] }>(url, c.agentEmail, c.apiToken);
+  const r = await zdFetchCached<{ macros: ZendeskMacro[] }>(url, c.agentEmail, c.apiToken);
   return r.ok ? { ok: true, macros: r.data.macros } : r;
 }
 
@@ -58,6 +58,7 @@ export async function applyMacro(
     method: "PUT",
     body: JSON.stringify({ ticket: applyResult.ticket }),
   });
+  if (ur.ok) invalidateCacheFor(`/tickets/${ticketId}`);
   return ur.ok ? { ok: true, ticket: ur.data.ticket, comment: applyResult.comment } : ur;
 }
 

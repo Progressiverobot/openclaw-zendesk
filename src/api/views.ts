@@ -4,7 +4,7 @@
  */
 
 import type { ZendeskView, ZendeskTicket } from "../types.js";
-import { buildBaseUrl, zdFetchRetry, zdFetch } from "./base.js";
+import { buildBaseUrl, zdFetchRetry, zdFetch, zdFetchCached } from "./base.js";
 
 type Creds = { subdomain: string; agentEmail: string; apiToken: string };
 type OkView = { ok: true; view: ZendeskView };
@@ -13,14 +13,14 @@ type Err = { ok: false; status: number; error: string };
 
 export async function getView(c: Creds, viewId: string | number): Promise<OkView | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/views/${viewId}.json`;
-  const r = await zdFetchRetry<{ view: ZendeskView }>(url, c.agentEmail, c.apiToken);
+  const r = await zdFetchCached<{ view: ZendeskView }>(url, c.agentEmail, c.apiToken);
   return r.ok ? { ok: true, view: r.data.view } : r;
 }
 
 export async function listViews(c: Creds, active = true): Promise<OkViews | Err> {
   const p = new URLSearchParams({ active: String(active) });
   const url = `${buildBaseUrl(c.subdomain)}/views.json?${p}`;
-  const r = await zdFetchRetry<{ views: ZendeskView[] }>(url, c.agentEmail, c.apiToken);
+  const r = await zdFetchCached<{ views: ZendeskView[] }>(url, c.agentEmail, c.apiToken);
   return r.ok ? { ok: true, views: r.data.views } : r;
 }
 
@@ -40,7 +40,7 @@ export async function executeView(
   if (opts.sortBy) p.set("sort_by", opts.sortBy);
   if (opts.sortOrder) p.set("sort_order", opts.sortOrder);
   const url = `${buildBaseUrl(c.subdomain)}/views/${viewId}/tickets.json?${p}`;
-  const r = await zdFetchRetry<{ tickets: ZendeskTicket[]; count: number; next_page: string | null }>(
+  const r = await zdFetchCached<{ tickets: ZendeskTicket[]; count: number; next_page: string | null }>(
     url,
     c.agentEmail,
     c.apiToken,
@@ -56,7 +56,7 @@ export async function countViewTickets(
   viewId: string | number,
 ): Promise<{ ok: true; count: number; fresh: boolean } | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/views/${viewId}/count.json`;
-  const r = await zdFetchRetry<{ view_count: { value: number; fresh: boolean } }>(
+  const r = await zdFetchCached<{ view_count: { value: number; fresh: boolean } }>(
     url,
     c.agentEmail,
     c.apiToken,

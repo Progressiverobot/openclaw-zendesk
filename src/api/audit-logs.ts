@@ -6,7 +6,7 @@
  */
 
 import type { ZendeskAuditLog } from "../types.js";
-import { buildBaseUrl, zdFetchRetry } from "./base.js";
+import { buildBaseUrl, zdFetchCached } from "./base.js";
 
 type Creds = { subdomain: string; agentEmail: string; apiToken: string };
 type Err = { ok: false; status: number; error: string };
@@ -16,7 +16,7 @@ export async function getAuditLog(
   auditLogId: string | number,
 ): Promise<{ ok: true; auditLog: ZendeskAuditLog } | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/audit_logs/${auditLogId}.json`;
-  const r = await zdFetchRetry<{ audit_log: ZendeskAuditLog }>(url, c.agentEmail, c.apiToken);
+  const r = await zdFetchCached<{ audit_log: ZendeskAuditLog }>(url, c.agentEmail, c.apiToken);
   return r.ok ? { ok: true, auditLog: r.data.audit_log } : r;
 }
 
@@ -50,7 +50,7 @@ export async function listAuditLogs(
   if (opts.sortBy) p.set("sort_by", opts.sortBy);
   if (opts.sortOrder) p.set("sort_order", opts.sortOrder);
   const url = `${buildBaseUrl(c.subdomain)}/audit_logs.json?${p}`;
-  const r = await zdFetchRetry<{
+  const r = await zdFetchCached<{
     audit_logs: ZendeskAuditLog[];
     count: number;
     next_page: string | null;

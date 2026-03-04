@@ -4,7 +4,7 @@
  */
 
 import type { ZendeskOrganization } from "../types.js";
-import { buildBaseUrl, zdFetchRetry, zdFetch } from "./base.js";
+import { buildBaseUrl, zdFetchRetry, zdFetch, zdFetchCached, invalidateCacheFor } from "./base.js";
 
 type Creds = { subdomain: string; agentEmail: string; apiToken: string };
 type OkOrg = { ok: true; organization: ZendeskOrganization };
@@ -13,7 +13,7 @@ type Err = { ok: false; status: number; error: string };
 
 export async function getOrganization(c: Creds, orgId: string | number): Promise<OkOrg | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/organizations/${orgId}.json`;
-  const r = await zdFetchRetry<{ organization: ZendeskOrganization }>(url, c.agentEmail, c.apiToken);
+  const r = await zdFetchCached<{ organization: ZendeskOrganization }>(url, c.agentEmail, c.apiToken);
   return r.ok ? { ok: true, organization: r.data.organization } : r;
 }
 
@@ -25,7 +25,7 @@ export async function listOrganizations(
   if (opts.page) p.set("page", String(opts.page));
   if (opts.perPage) p.set("per_page", String(Math.min(opts.perPage, 100)));
   const url = `${buildBaseUrl(c.subdomain)}/organizations.json?${p}`;
-  const r = await zdFetchRetry<{
+  const r = await zdFetchCached<{
     organizations: ZendeskOrganization[];
     count: number;
     next_page: string | null;
@@ -41,7 +41,7 @@ export async function searchOrganizations(
 ): Promise<OkOrgs | Err> {
   const p = new URLSearchParams({ query });
   const url = `${buildBaseUrl(c.subdomain)}/organizations/search.json?${p}`;
-  const r = await zdFetchRetry<{
+  const r = await zdFetchCached<{
     organizations: ZendeskOrganization[];
     count: number;
     next_page: string | null;
@@ -60,6 +60,7 @@ export async function createOrganization(
     method: "POST",
     body: JSON.stringify({ organization: fields }),
   });
+  if (r.ok) invalidateCacheFor("/organizations");
   return r.ok ? { ok: true, organization: r.data.organization } : r;
 }
 
@@ -73,6 +74,7 @@ export async function updateOrganization(
     method: "PUT",
     body: JSON.stringify({ organization: updates }),
   });
+  if (r.ok) invalidateCacheFor(`/organizations/${orgId}`);
   return r.ok ? { ok: true, organization: r.data.organization } : r;
 }
 

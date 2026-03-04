@@ -4,7 +4,7 @@
  */
 
 import type { ZendeskSlaPolicy } from "../types.js";
-import { buildBaseUrl, zdFetchRetry, zdFetch } from "./base.js";
+import { buildBaseUrl, zdFetchRetry, zdFetch, zdFetchCached } from "./base.js";
 
 type Creds = { subdomain: string; agentEmail: string; apiToken: string };
 type OkSla = { ok: true; slaPolicy: ZendeskSlaPolicy };
@@ -13,13 +13,13 @@ type Err = { ok: false; status: number; error: string };
 
 export async function getSlaPolicy(c: Creds, policyId: string | number): Promise<OkSla | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/slas/policies/${policyId}.json`;
-  const r = await zdFetchRetry<{ sla_policy: ZendeskSlaPolicy }>(url, c.agentEmail, c.apiToken);
+  const r = await zdFetchCached<{ sla_policy: ZendeskSlaPolicy }>(url, c.agentEmail, c.apiToken);
   return r.ok ? { ok: true, slaPolicy: r.data.sla_policy } : r;
 }
 
 export async function listSlaPolicies(c: Creds): Promise<OkSlas | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/slas/policies.json`;
-  const r = await zdFetchRetry<{ sla_policies: ZendeskSlaPolicy[] }>(url, c.agentEmail, c.apiToken);
+  const r = await zdFetchCached<{ sla_policies: ZendeskSlaPolicy[] }>(url, c.agentEmail, c.apiToken);
   return r.ok ? { ok: true, slaPolicies: r.data.sla_policies } : r;
 }
 

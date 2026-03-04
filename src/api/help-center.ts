@@ -4,7 +4,7 @@
  */
 
 import type { ZendeskArticle, ZendeskSection, ZendeskCategory } from "../types.js";
-import { buildHelpCenterUrl, zdFetchRetry, zdFetch } from "./base.js";
+import { buildHelpCenterUrl, zdFetchRetry, zdFetch, zdFetchCached, invalidateCacheFor } from "./base.js";
 
 type Creds = { subdomain: string; agentEmail: string; apiToken: string };
 type Err = { ok: false; status: number; error: string };
@@ -19,7 +19,7 @@ export async function getArticle(
   locale = "en-us",
 ): Promise<{ ok: true; article: ZendeskArticle } | Err> {
   const url = `${buildHelpCenterUrl(c.subdomain, locale)}/articles/${articleId}.json`;
-  const r = await zdFetchRetry<{ article: ZendeskArticle }>(url, c.agentEmail, c.apiToken);
+  const r = await zdFetchCached<{ article: ZendeskArticle }>(url, c.agentEmail, c.apiToken);
   return r.ok ? { ok: true, article: r.data.article } : r;
 }
 
@@ -35,7 +35,7 @@ export async function listArticles(
   if (opts.page) p.set("page", String(opts.page));
   if (opts.perPage) p.set("per_page", String(Math.min(opts.perPage, 100)));
   const url = `${base}?${p}`;
-  const r = await zdFetchRetry<{ articles: ZendeskArticle[]; count: number; next_page: string | null }>(
+  const r = await zdFetchCached<{ articles: ZendeskArticle[]; count: number; next_page: string | null }>(
     url,
     c.agentEmail,
     c.apiToken,
@@ -55,7 +55,7 @@ export async function searchArticles(
   if (opts.page) p.set("page", String(opts.page));
   if (opts.perPage) p.set("per_page", String(Math.min(opts.perPage, 100)));
   const url = `https://${c.subdomain}.zendesk.com/api/v2/help_center/articles/search.json?${p}`;
-  const r = await zdFetchRetry<{ results: ZendeskArticle[]; count: number }>(
+  const r = await zdFetchCached<{ results: ZendeskArticle[]; count: number }>(
     url,
     c.agentEmail,
     c.apiToken,
@@ -88,6 +88,7 @@ export async function updateArticle(
     method: "PUT",
     body: JSON.stringify({ article: updates }),
   });
+  if (r.ok) invalidateCacheFor(`/articles/${articleId}`);
   return r.ok ? { ok: true, article: r.data.article } : r;
 }
 

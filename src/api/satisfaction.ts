@@ -6,7 +6,7 @@
  */
 
 import type { ZendeskSatisfactionRating } from "../types.js";
-import { buildBaseUrl, zdFetchRetry } from "./base.js";
+import { buildBaseUrl, zdFetchCached } from "./base.js";
 
 type Creds = { subdomain: string; agentEmail: string; apiToken: string };
 type Err = { ok: false; status: number; error: string };
@@ -16,7 +16,7 @@ export async function getSatisfactionRating(
   ratingId: string | number,
 ): Promise<{ ok: true; rating: ZendeskSatisfactionRating } | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/satisfaction_ratings/${ratingId}.json`;
-  const r = await zdFetchRetry<{ satisfaction_rating: ZendeskSatisfactionRating }>(
+  const r = await zdFetchCached<{ satisfaction_rating: ZendeskSatisfactionRating }>(
     url,
     c.agentEmail,
     c.apiToken,
@@ -46,7 +46,7 @@ export async function listSatisfactionRatings(
   if (opts.page) p.set("page", String(opts.page));
   if (opts.perPage) p.set("per_page", String(Math.min(opts.perPage, 100)));
   const url = `${buildBaseUrl(c.subdomain)}/satisfaction_ratings.json?${p}`;
-  const r = await zdFetchRetry<{
+  const r = await zdFetchCached<{
     satisfaction_ratings: ZendeskSatisfactionRating[];
     count: number;
     next_page: string | null;

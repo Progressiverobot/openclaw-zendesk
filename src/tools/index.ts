@@ -297,6 +297,20 @@ export const createZendeskAgentTools: ChannelAgentToolFactory = ({ cfg }) => {
     },
   };
 
+  const removeTicketTags: ChannelAgentTool = {
+    name: "zendesk_remove_ticket_tags",
+    label: "Remove Ticket Tags",
+    description: "Remove specific tags from a ticket without affecting any other tags.",
+    parameters: Type.Object({
+      ticket_id: Type.String({ description: "Ticket ID" }),
+      tags: Type.Array(Type.String(), { description: "Tags to remove" }),
+    }, { additionalProperties: false }),
+    execute: async (_id, { ticket_id, tags }) => {
+      const r = await ticketsApi.removeTicketTags(getCreds(), ticket_id, tags);
+      return r.ok ? ok({ removed: true, tags }) : err(r.error);
+    },
+  };
+
   const skipTicket: ChannelAgentTool = {
     name: "zendesk_skip_ticket",
     label: "Skip Ticket",
@@ -902,6 +916,46 @@ Query syntax examples:
   // WEBHOOK MANAGEMENT TOOLS
   // -------------------------------------------------------------------------
 
+  const escalateToHuman: ChannelAgentTool = {
+    name: "zendesk_escalate_to_human",
+    label: "Escalate to Human Agent",
+    description: `Hand off a ticket to a human agent when autonomous resolution is not possible.
+Adds a private escalation note, applies the "needs-human" and "ai-escalated" tags, sets the
+ticket to open, and optionally moves it to a specific human-staffed group.
+
+Use this when:
+- The KB has no solution for the problem
+- The customer explicitly requests a human
+- The action requires manager approval or a refund override
+- The complexity or sensitivity is beyond AI capability`,
+    parameters: Type.Object({
+      ticket_id: Type.String({ description: "Ticket ID to escalate" }),
+      reason: Type.String({ description: "Specific reason why this ticket requires a human agent" }),
+      group_id: Type.Optional(Type.Number({ description: "Human agent group to assign to (optional)" })),
+      priority: optionalStringEnum(["low", "normal", "high", "urgent"] as const, "Escalation priority (optional; keeps current priority if omitted)"),
+    }, { additionalProperties: false }),
+    execute: async (_id, params) => {
+      const creds = getCreds();
+      // Internal escalation note
+      const noteBody = `🔔 **Escalated to human agent**\n\nReason: ${params.reason}`;
+      await commentsApi.addComment(creds, params.ticket_id, noteBody, false);
+      // Tag + optional group reassignment
+      await ticketsApi.addTicketTags(creds, params.ticket_id, ["needs-human", "ai-escalated"]);
+      const updates: Parameters<typeof ticketsApi.updateTicket>[2] = { status: "open" };
+      if (params.group_id !== undefined) updates.group_id = params.group_id;
+      if (params.priority) updates.priority = params.priority as typeof updates.priority;
+      const r = await ticketsApi.updateTicket(creds, params.ticket_id, updates);
+      return r.ok ? ok({ escalated: true, ticket: r.ticket }) : err(r.error);
+    },
+  };
+
+  // Keep the section header for webhooks (moved below)
+  const _escalatePlaceholder = escalateToHuman; void _escalatePlaceholder;
+
+  // -------------------------------------------------------------------------
+  // WEBHOOK MANAGEMENT TOOLS (continued)
+  // -------------------------------------------------------------------------
+
   const listWebhooks: ChannelAgentTool = {
     name: "zendesk_list_webhooks",
     label: "List Webhooks",
@@ -974,8 +1028,10 @@ Query syntax examples:
     bulkUpdateTickets,
     setTicketTags,
     addTicketTags,
+    removeTicketTags,
     skipTicket,
     debounceTool(getTicketMetrics),
+    escalateToHuman,
     // Comments
     addComment,
     addInternalNote,

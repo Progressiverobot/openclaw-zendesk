@@ -4,7 +4,7 @@
  */
 
 import type { ZendeskComment } from "../types.js";
-import { buildBaseUrl, zdFetchRetry, zdFetch, cursorParams } from "./base.js";
+import { buildBaseUrl, zdFetchRetry, zdFetch, zdFetchCached, invalidateCacheFor, cursorParams } from "./base.js";
 
 type Creds = { subdomain: string; agentEmail: string; apiToken: string };
 type Err = { ok: false; status: number; error: string };
@@ -22,7 +22,7 @@ export async function listCommentsPaged(
   afterCursor?: string,
 ): Promise<{ ok: true } & CommentPage | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/tickets/${ticketId}/comments.json?${cursorParams(pageSize, afterCursor)}`;
-  const r = await zdFetchRetry<{
+  const r = await zdFetchCached<{
     comments: ZendeskComment[];
     meta?: { has_more?: boolean; after_cursor?: string };
   }>(url, c.agentEmail, c.apiToken);
@@ -67,6 +67,7 @@ export async function addComment(
     method: "PUT",
     body: JSON.stringify({ ticket: { comment } }),
   });
+  if (r.ok) invalidateCacheFor(`/tickets/${ticketId}`);
   return r.ok ? { ok: true, ticket: r.data.ticket } : r;
 }
 

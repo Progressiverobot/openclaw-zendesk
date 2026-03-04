@@ -3,7 +3,7 @@
  * https://developer.zendesk.com/api-reference/ticketing/ticket-management/search/
  */
 
-import { buildBaseUrl, zdFetchRetry } from "./base.js";
+import { buildBaseUrl, zdFetchCached } from "./base.js";
 
 type Creds = { subdomain: string; agentEmail: string; apiToken: string };
 type Err = { ok: false; status: number; error: string };
@@ -36,7 +36,7 @@ export async function search<T = unknown>(
   if (opts.sortBy) p.set("sort_by", opts.sortBy);
   if (opts.sortOrder) p.set("sort_order", opts.sortOrder);
   const url = `${buildBaseUrl(c.subdomain)}/search.json?${p}`;
-  const r = await zdFetchRetry<{
+  const r = await zdFetchCached<{
     results: T[];
     count: number;
     next_page: string | null;
