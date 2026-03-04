@@ -47,9 +47,10 @@ function updateRateLimit(subdomain: string, headers: Headers): void {
 async function waitForRateLimit(subdomain: string): Promise<void> {
   const state = rateLimitState.get(subdomain);
   if (!state || state.remaining > 0) return;
-  const waitMs = Math.max(0, state.resetAt - Date.now()) + 100;
+  // Only sleep if the reset timestamp is still in the future
+  const waitMs = state.resetAt - Date.now();
   if (waitMs > 0 && waitMs < 120_000) {
-    await new Promise<void>((r) => setTimeout(r, waitMs));
+    await new Promise<void>((r) => setTimeout(r, waitMs + 100));
   }
 }
 

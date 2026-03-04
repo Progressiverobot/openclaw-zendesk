@@ -6,7 +6,7 @@
  */
 
 import type { ZendeskSuspendedTicket } from "../types.js";
-import { buildBaseUrl, zdFetchRetry, zdFetch, zdFetchCached } from "./base.js";
+import { buildBaseUrl, zdFetchRetry, zdFetch, zdFetchCached, invalidateCacheFor } from "./base.js";
 
 type Creds = { subdomain: string; agentEmail: string; apiToken: string };
 type Err = { ok: false; status: number; error: string };
@@ -51,6 +51,7 @@ export async function recoverSuspendedTicket(
   const r = await zdFetchRetry<{ ticket: unknown }>(url, c.agentEmail, c.apiToken, {
     method: "PUT",
   });
+  if (r.ok) invalidateCacheFor("/suspended_tickets");
   return r.ok ? { ok: true, ticket: r.data.ticket } : r;
 }
 
@@ -62,6 +63,7 @@ export async function recoverManySuspendedTickets(
   const p = new URLSearchParams({ ids: ids.join(",") });
   const url = `${buildBaseUrl(c.subdomain)}/suspended_tickets/recover_many.json?${p}`;
   const r = await zdFetchRetry<unknown>(url, c.agentEmail, c.apiToken, { method: "PUT" });
+  if (r.ok) invalidateCacheFor("/suspended_tickets");
   return r.ok ? { ok: true } : r;
 }
 
@@ -72,6 +74,7 @@ export async function deleteSuspendedTicket(
 ): Promise<{ ok: true } | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/suspended_tickets/${suspendedId}.json`;
   const r = await zdFetch<null>(url, c.agentEmail, c.apiToken, { method: "DELETE" });
+  if (r.ok) invalidateCacheFor("/suspended_tickets");
   return r.ok ? { ok: true } : r;
 }
 
@@ -83,5 +86,6 @@ export async function deleteManySuspendedTickets(
   const p = new URLSearchParams({ ids: ids.join(",") });
   const url = `${buildBaseUrl(c.subdomain)}/suspended_tickets/destroy_many.json?${p}`;
   const r = await zdFetch<null>(url, c.agentEmail, c.apiToken, { method: "DELETE" });
+  if (r.ok) invalidateCacheFor("/suspended_tickets");
   return r.ok ? { ok: true } : r;
 }

@@ -100,6 +100,7 @@ export async function updateUser(
 export async function deleteUser(c: Creds, userId: string | number): Promise<{ ok: true; user: ZendeskUser } | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/users/${userId}.json`;
   const r = await zdFetch<{ user: ZendeskUser }>(url, c.agentEmail, c.apiToken, { method: "DELETE" });
+  if (r.ok) invalidateCacheFor(`/users/${userId}`);
   return r.ok ? { ok: true, user: r.data.user } : r;
 }
 
@@ -113,6 +114,7 @@ export async function createOrUpdateUser(
     method: "POST",
     body: JSON.stringify({ user: fields }),
   });
+  if (r.ok) invalidateCacheFor("/users");
   return r.ok ? { ok: true, user: r.data.user } : r;
 }
 

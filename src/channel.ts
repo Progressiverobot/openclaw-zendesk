@@ -503,14 +503,21 @@ export function createZendeskPlugin() {
           `[zendesk] Registered HTTP route: ${account.webhookPath}`,
         );
 
-        // Start autonomous queue processor if view IDs are configured
+        // Start autonomous queue processor if view IDs or incremental export is configured
         const viewIds: string[] = (account as any).queueViewIds ?? [];
         const queuePollMs: number = (account as any).queuePollIntervalMs ?? 30_000;
-        const queueProc = viewIds.length > 0
+        const useIncrementalExport: boolean = (account as any).useIncrementalExport ?? false;
+        const circuitBreakerThreshold: number = (account as any).circuitBreakerThreshold ?? 5;
+        const circuitRecoveryMs: number = (account as any).circuitRecoveryMs ?? 120_000;
+        const queueActive = viewIds.length > 0 || useIncrementalExport;
+        const queueProc = queueActive
           ? startQueueProcessor({
               creds: account,
               viewIds,
               pollIntervalMs: queuePollMs,
+              useIncrementalExport,
+              circuitBreakerThreshold,
+              circuitRecoveryMs,
               dispatch: async (ticket) => {
                 const rt = getZendeskRuntime();
                 const currentCfg = await rt.config.loadConfig();
@@ -587,7 +594,8 @@ export function createZendeskPlugin() {
           : null;
 
         if (queueProc) {
-          log?.info?.(`[zendesk] Queue processor started for ${viewIds.length} view(s)`);
+          const modeLabel = useIncrementalExport ? "incremental export" : `${viewIds.length} view(s)`;
+          log?.info?.(`[zendesk] Queue processor started (${modeLabel})`);
         }
 
         return waitUntilAbort(ctx.abortSignal, () => {
