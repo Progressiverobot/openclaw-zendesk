@@ -913,7 +913,7 @@ Query syntax examples:
   };
 
   // -------------------------------------------------------------------------
-  // WEBHOOK MANAGEMENT TOOLS
+  // ESCALATION TOOL
   // -------------------------------------------------------------------------
 
   const escalateToHuman: ChannelAgentTool = {
@@ -936,11 +936,14 @@ Use this when:
     }, { additionalProperties: false }),
     execute: async (_id, params) => {
       const creds = getCreds();
-      // Internal escalation note
+      // Step 1: add private escalation note
       const noteBody = `🔔 **Escalated to human agent**\n\nReason: ${params.reason}`;
-      await commentsApi.addComment(creds, params.ticket_id, noteBody, false);
-      // Tag + optional group reassignment
-      await ticketsApi.addTicketTags(creds, params.ticket_id, ["needs-human", "ai-escalated"]);
+      const noteResult = await commentsApi.addComment(creds, params.ticket_id, noteBody, false);
+      if (!noteResult.ok) return err(noteResult.error);
+      // Step 2: apply escalation tags
+      const tagResult = await ticketsApi.addTicketTags(creds, params.ticket_id, ["needs-human", "ai-escalated"]);
+      if (!tagResult.ok) return err(tagResult.error);
+      // Step 3: update ticket status (and optionally group/priority)
       const updates: Parameters<typeof ticketsApi.updateTicket>[2] = { status: "open" };
       if (params.group_id !== undefined) updates.group_id = params.group_id;
       if (params.priority) updates.priority = params.priority as typeof updates.priority;
@@ -948,6 +951,10 @@ Use this when:
       return r.ok ? ok({ escalated: true, ticket: r.ticket }) : err(r.error);
     },
   };
+
+  // -------------------------------------------------------------------------
+  // WEBHOOK MANAGEMENT TOOLS
+  // -------------------------------------------------------------------------
 
   const listWebhooks: ChannelAgentTool = {
     name: "zendesk_list_webhooks",
@@ -1026,6 +1033,7 @@ Use this when:
     debounceTool(getTicketMetrics),
     escalateToHuman,
     // Comments
+
     addComment,
     addInternalNote,
     debounceTool(listComments),

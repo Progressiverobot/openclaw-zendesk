@@ -229,9 +229,10 @@ export async function setTicketTags(
   ticketId: string | number,
   tags: string[],
 ): Promise<{ ok: true; tags: string[] } | Err> {
+  // PUT replaces all existing tags (Zendesk API convention)
   const url = `${buildBaseUrl(c.subdomain)}/tickets/${ticketId}/tags.json`;
   const r = await zdFetchRetry<{ tags: string[] }>(url, c.agentEmail, c.apiToken, {
-    method: "POST",
+    method: "PUT",
     body: JSON.stringify({ tags }),
   });
   if (r.ok) invalidateCacheFor(`/tickets/${ticketId}`);
@@ -243,9 +244,10 @@ export async function addTicketTags(
   ticketId: string | number,
   tags: string[],
 ): Promise<{ ok: true; tags: string[] } | Err> {
+  // POST appends tags without removing existing ones (Zendesk API convention)
   const url = `${buildBaseUrl(c.subdomain)}/tickets/${ticketId}/tags.json`;
   const r = await zdFetchRetry<{ tags: string[] }>(url, c.agentEmail, c.apiToken, {
-    method: "PUT",
+    method: "POST",
     body: JSON.stringify({ tags }),
   });
   if (r.ok) invalidateCacheFor(`/tickets/${ticketId}`);
