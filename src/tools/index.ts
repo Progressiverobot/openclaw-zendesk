@@ -208,7 +208,8 @@ export const createZendeskAgentTools: ChannelAgentToolFactory = ({ cfg }) => {
       const r = await ticketsApi.updateTicket(getCreds(), params.ticket_id, updates);
       if (!r.ok) return err(r.error);
       if (params.internal_note) {
-        await commentsApi.addComment(getCreds(), params.ticket_id, params.internal_note, false);
+        const noteResult = await commentsApi.addComment(getCreds(), params.ticket_id, params.internal_note, false);
+        if (!noteResult.ok) return err(noteResult.error);
       }
       return ok({ solved: true, ticket: r.ticket });
     },

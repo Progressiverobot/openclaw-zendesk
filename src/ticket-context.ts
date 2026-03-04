@@ -7,7 +7,9 @@
  * current status/priority, and the entire conversation thread.
  */
 
-import { getTicket, listTicketComments, getUser } from "./client.js";
+import { getTicket } from "./api/tickets.js";
+import { listAllComments } from "./api/comments.js";
+import { getUser } from "./api/users.js";
 import type { ZendeskTicket, ZendeskComment, ZendeskUser } from "./types.js";
 
 export interface TicketContext {
@@ -68,10 +70,11 @@ export async function buildTicketContext(
   ticketId: string | number,
   maxComments = 20,
 ): Promise<TicketContext> {
+  const creds = { subdomain, agentEmail, apiToken };
   // Fetch in parallel
   const [ticketResult, commentsResult] = await Promise.all([
-    getTicket(subdomain, agentEmail, apiToken, ticketId),
-    listTicketComments(subdomain, agentEmail, apiToken, ticketId, maxComments),
+    getTicket(creds, ticketId),
+    listAllComments(creds, ticketId, maxComments),
   ]);
 
   const ticket = ticketResult.ok ? ticketResult.ticket : null;
@@ -80,12 +83,7 @@ export async function buildTicketContext(
   // Fetch requester info if we have a ticket
   let requester: ZendeskUser | null = null;
   if (ticket?.requester_id) {
-    const userResult = await getUser(
-      subdomain,
-      agentEmail,
-      apiToken,
-      ticket.requester_id,
-    ).catch(() => null);
+    const userResult = await getUser(creds, ticket.requester_id).catch(() => null);
     requester = userResult?.ok ? userResult.user : null;
   }
 
@@ -98,7 +96,7 @@ export async function buildTicketContext(
     authorIds
       .filter((id) => !authorNames.has(id))
       .map(async (id) => {
-        const r = await getUser(subdomain, agentEmail, apiToken, id).catch(() => null);
+        const r = await getUser(creds, id).catch(() => null);
         if (r?.ok) authorNames.set(r.user.id, r.user.name);
       }),
   );

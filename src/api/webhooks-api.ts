@@ -6,7 +6,7 @@
  */
 
 import type { ZendeskWebhookDef } from "../types.js";
-import { buildBaseUrl, zdFetchRetry, zdFetch } from "./base.js";
+import { buildBaseUrl, zdFetchRetry, zdFetch, zdFetchCached, invalidateCacheFor } from "./base.js";
 
 type Creds = { subdomain: string; agentEmail: string; apiToken: string };
 type OkWebhook = { ok: true; webhook: ZendeskWebhookDef };
@@ -15,7 +15,7 @@ type Err = { ok: false; status: number; error: string };
 
 export async function getWebhook(c: Creds, webhookId: string): Promise<OkWebhook | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/webhooks/${webhookId}`;
-  const r = await zdFetchRetry<{ webhook: ZendeskWebhookDef }>(url, c.agentEmail, c.apiToken);
+  const r = await zdFetchCached<{ webhook: ZendeskWebhookDef }>(url, c.agentEmail, c.apiToken);
   return r.ok ? { ok: true, webhook: r.data.webhook } : r;
 }
 
@@ -27,7 +27,7 @@ export async function listWebhooks(
   if (opts.filter?.nameContains) p.set("filter[name_contains]", opts.filter.nameContains);
   if (opts.filter?.status) p.set("filter[status]", opts.filter.status);
   const url = `${buildBaseUrl(c.subdomain)}/webhooks?${p}`;
-  const r = await zdFetchRetry<{ webhooks: ZendeskWebhookDef[] }>(url, c.agentEmail, c.apiToken);
+  const r = await zdFetchCached<{ webhooks: ZendeskWebhookDef[] }>(url, c.agentEmail, c.apiToken);
   return r.ok ? { ok: true, webhooks: r.data.webhooks } : r;
 }
 
@@ -52,6 +52,7 @@ export async function createWebhook(
     method: "POST",
     body: JSON.stringify({ webhook: fields }),
   });
+  if (r.ok) invalidateCacheFor("/webhooks");
   return r.ok ? { ok: true, webhook: r.data.webhook } : r;
 }
 
@@ -70,12 +71,14 @@ export async function updateWebhook(
     method: "PATCH",
     body: JSON.stringify({ webhook: updates }),
   });
+  if (r.ok) invalidateCacheFor(`/webhooks/${webhookId}`);
   return r.ok ? { ok: true, webhook: r.data.webhook } : r;
 }
 
 export async function deleteWebhook(c: Creds, webhookId: string): Promise<{ ok: true } | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/webhooks/${webhookId}`;
   const r = await zdFetch<null>(url, c.agentEmail, c.apiToken, { method: "DELETE" });
+  if (r.ok) invalidateCacheFor(`/webhooks/${webhookId}`);
   return r.ok ? { ok: true } : r;
 }
 

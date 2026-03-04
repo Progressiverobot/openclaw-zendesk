@@ -4,7 +4,7 @@
  */
 
 import type { ZendeskTrigger } from "../types.js";
-import { buildBaseUrl, zdFetchRetry, zdFetch, zdFetchCached } from "./base.js";
+import { buildBaseUrl, zdFetchRetry, zdFetch, zdFetchCached, invalidateCacheFor } from "./base.js";
 
 type Creds = { subdomain: string; agentEmail: string; apiToken: string };
 type OkTrigger = { ok: true; trigger: ZendeskTrigger };
@@ -49,6 +49,7 @@ export async function createTrigger(
     method: "POST",
     body: JSON.stringify({ trigger: fields }),
   });
+  if (r.ok) invalidateCacheFor("/triggers");
   return r.ok ? { ok: true, trigger: r.data.trigger } : r;
 }
 
@@ -62,11 +63,13 @@ export async function updateTrigger(
     method: "PUT",
     body: JSON.stringify({ trigger: updates }),
   });
+  if (r.ok) invalidateCacheFor(`/triggers/${triggerId}`);
   return r.ok ? { ok: true, trigger: r.data.trigger } : r;
 }
 
 export async function deleteTrigger(c: Creds, triggerId: string | number): Promise<{ ok: true } | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/triggers/${triggerId}.json`;
   const r = await zdFetch<null>(url, c.agentEmail, c.apiToken, { method: "DELETE" });
+  if (r.ok) invalidateCacheFor(`/triggers/${triggerId}`);
   return r.ok ? { ok: true } : r;
 }

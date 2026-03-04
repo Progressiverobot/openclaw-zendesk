@@ -81,6 +81,7 @@ export async function updateOrganization(
 export async function deleteOrganization(c: Creds, orgId: string | number): Promise<{ ok: true } | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/organizations/${orgId}.json`;
   const r = await zdFetch<null>(url, c.agentEmail, c.apiToken, { method: "DELETE" });
+  if (r.ok) invalidateCacheFor(`/organizations/${orgId}`);
   return r.ok ? { ok: true } : r;
 }
 
@@ -97,7 +98,7 @@ export async function listOrgMembers(
   if (opts.page) p.set("page", String(opts.page));
   if (opts.perPage) p.set("per_page", String(opts.perPage));
   const url = `${buildBaseUrl(c.subdomain)}/organizations/${orgId}/users.json?${p}`;
-  const r = await zdFetchRetry<{ users: unknown[]; count: number }>(url, c.agentEmail, c.apiToken);
+  const r = await zdFetchCached<{ users: unknown[]; count: number }>(url, c.agentEmail, c.apiToken);
   return r.ok ? { ok: true, users: r.data.users, count: r.data.count } : r;
 }
 
@@ -107,7 +108,7 @@ export async function listOrgMembers(
 
 export async function getOrgTags(c: Creds, orgId: string | number): Promise<{ ok: true; tags: string[] } | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/organizations/${orgId}/tags.json`;
-  const r = await zdFetchRetry<{ tags: string[] }>(url, c.agentEmail, c.apiToken);
+  const r = await zdFetchCached<{ tags: string[] }>(url, c.agentEmail, c.apiToken);
   return r.ok ? { ok: true, tags: r.data.tags } : r;
 }
 
@@ -121,5 +122,6 @@ export async function setOrgTags(
     method: "POST",
     body: JSON.stringify({ tags }),
   });
+  if (r.ok) invalidateCacheFor(`/organizations/${orgId}`);
   return r.ok ? { ok: true, tags: r.data.tags } : r;
 }

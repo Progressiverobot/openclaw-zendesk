@@ -60,6 +60,7 @@ export async function updateGroup(
 export async function deleteGroup(c: Creds, groupId: string | number): Promise<{ ok: true } | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/groups/${groupId}.json`;
   const r = await zdFetch<null>(url, c.agentEmail, c.apiToken, { method: "DELETE" });
+  if (r.ok) invalidateCacheFor(`/groups/${groupId}`);
   return r.ok ? { ok: true } : r;
 }
 
@@ -83,7 +84,7 @@ export async function listGroupMemberships(
   const url = groupId
     ? `${buildBaseUrl(c.subdomain)}/groups/${groupId}/memberships.json`
     : `${buildBaseUrl(c.subdomain)}/group_memberships.json`;
-  const r = await zdFetchRetry<{ group_memberships: GroupMembership[] }>(url, c.agentEmail, c.apiToken);
+  const r = await zdFetchCached<{ group_memberships: GroupMembership[] }>(url, c.agentEmail, c.apiToken);
   return r.ok ? { ok: true, memberships: r.data.group_memberships } : r;
 }
 
@@ -97,6 +98,7 @@ export async function addGroupMembership(
     method: "POST",
     body: JSON.stringify({ group_membership: { user_id: userId, group_id: groupId } }),
   });
+  if (r.ok) invalidateCacheFor("/group_memberships");
   return r.ok ? { ok: true, membership: r.data.group_membership } : r;
 }
 
@@ -106,5 +108,6 @@ export async function deleteGroupMembership(
 ): Promise<{ ok: true } | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/group_memberships/${membershipId}.json`;
   const r = await zdFetch<null>(url, c.agentEmail, c.apiToken, { method: "DELETE" });
+  if (r.ok) invalidateCacheFor(`/group_memberships/${membershipId}`);
   return r.ok ? { ok: true } : r;
 }

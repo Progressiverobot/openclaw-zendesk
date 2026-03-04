@@ -282,7 +282,7 @@ All configuration keys can alternatively be provided as environment variables:
 | `src/api/base.ts` | Shared fetch, auth, rate-limit tracking, pagination |
 | `src/webhook-handler.ts` | HMAC verification and webhook dispatch |
 | `src/queue-processor.ts` | Proactive view-polling autonomous worker |
-| `src/ticket-context.ts` | Builds enriched ticket context for the agent |
+| `src/ticket-context.ts` | Builds enriched ticket context for the agent (uses shared `api/` cache layer) |
 | `src/probe.ts` | Credential health check used by `openclaw channels status --probe` |
 | `src/onboarding.ts` | Setup checks and onboarding wizard |
 | `src/retry.ts` | Exponential back-off retry wrapper |
@@ -479,7 +479,7 @@ The module implements four distinct layers of protection to keep API usage effic
 
 ### Layer 1 — API response cache (`TtlCache`)
 
-All GET calls made via `zdFetchCached()` in `src/api/base.ts` are stored in a module-level `TtlCache` with a **30-second TTL**. A concurrent `InflightCache` collapses duplicate in-flight requests for the same URL into a single network call, preventing thundering-herd problems during rapid agent iteration.
+All GET calls made via `zdFetchCached()` in `src/api/base.ts` are stored in a module-level `TtlCache` with a **30-second TTL**. A concurrent `InflightCache` collapses duplicate in-flight requests for the same URL into a single network call, preventing thundering-herd problems during rapid agent iteration. This cache is shared across all callers — including `src/ticket-context.ts` (ticket context enrichment on every inbound event), agent tools, and the queue processor — so a ticket fetched during context enrichment is already warm when the agent tools access it next.
 
 ```
 zdFetchCached(url, email, token, ttlMs = 30_000)
@@ -488,7 +488,7 @@ zdFetchCached(url, email, token, ttlMs = 30_000)
   └─ miss → fetch → cache on success → return
 ```
 
-After any mutation (POST / PUT / PATCH / DELETE), call `invalidateCacheFor(urlPrefix)` to bust stale entries for the affected resource.
+After any mutation (POST / PUT / PATCH / DELETE), `invalidateCacheFor(urlPrefix)` is called automatically to bust stale entries for the affected resource. This covers tickets, users, organisations, groups, triggers, automations, Help Centre articles, webhooks, and all other mutable resources.
 
 ### Layer 2 — Tool-level debounce (`debounceTool`)
 

@@ -4,7 +4,7 @@
  */
 
 import type { ZendeskAutomation } from "../types.js";
-import { buildBaseUrl, zdFetchRetry, zdFetch, zdFetchCached } from "./base.js";
+import { buildBaseUrl, zdFetchRetry, zdFetch, zdFetchCached, invalidateCacheFor } from "./base.js";
 
 type Creds = { subdomain: string; agentEmail: string; apiToken: string };
 type OkAuto = { ok: true; automation: ZendeskAutomation };
@@ -42,6 +42,7 @@ export async function createAutomation(
     method: "POST",
     body: JSON.stringify({ automation: fields }),
   });
+  if (r.ok) invalidateCacheFor("/automations");
   return r.ok ? { ok: true, automation: r.data.automation } : r;
 }
 
@@ -55,11 +56,13 @@ export async function updateAutomation(
     method: "PUT",
     body: JSON.stringify({ automation: updates }),
   });
+  if (r.ok) invalidateCacheFor(`/automations/${automationId}`);
   return r.ok ? { ok: true, automation: r.data.automation } : r;
 }
 
 export async function deleteAutomation(c: Creds, automationId: string | number): Promise<{ ok: true } | Err> {
   const url = `${buildBaseUrl(c.subdomain)}/automations/${automationId}.json`;
   const r = await zdFetch<null>(url, c.agentEmail, c.apiToken, { method: "DELETE" });
+  if (r.ok) invalidateCacheFor(`/automations/${automationId}`);
   return r.ok ? { ok: true } : r;
 }

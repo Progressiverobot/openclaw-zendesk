@@ -74,6 +74,7 @@ export async function createArticle(
     method: "POST",
     body: JSON.stringify({ article: fields }),
   });
+  if (r.ok) invalidateCacheFor("/articles");
   return r.ok ? { ok: true, article: r.data.article } : r;
 }
 
@@ -99,6 +100,7 @@ export async function deleteArticle(
 ): Promise<{ ok: true } | Err> {
   const url = `${buildHelpCenterUrl(c.subdomain, locale)}/articles/${articleId}.json`;
   const r = await zdFetch<null>(url, c.agentEmail, c.apiToken, { method: "DELETE" });
+  if (r.ok) invalidateCacheFor(`/articles/${articleId}`);
   return r.ok ? { ok: true } : r;
 }
 
@@ -114,7 +116,7 @@ export async function listSections(
   const base = opts.categoryId
     ? `${buildHelpCenterUrl(c.subdomain, locale)}/categories/${opts.categoryId}/sections.json`
     : `${buildHelpCenterUrl(c.subdomain, locale)}/sections.json`;
-  const r = await zdFetchRetry<{ sections: ZendeskSection[] }>(base, c.agentEmail, c.apiToken);
+  const r = await zdFetchCached<{ sections: ZendeskSection[] }>(base, c.agentEmail, c.apiToken);
   return r.ok ? { ok: true, sections: r.data.sections } : r;
 }
 
@@ -127,6 +129,6 @@ export async function listCategories(
   locale = "en-us",
 ): Promise<{ ok: true; categories: ZendeskCategory[] } | Err> {
   const url = `${buildHelpCenterUrl(c.subdomain, locale)}/categories.json`;
-  const r = await zdFetchRetry<{ categories: ZendeskCategory[] }>(url, c.agentEmail, c.apiToken);
+  const r = await zdFetchCached<{ categories: ZendeskCategory[] }>(url, c.agentEmail, c.apiToken);
   return r.ok ? { ok: true, categories: r.data.categories } : r;
 }
